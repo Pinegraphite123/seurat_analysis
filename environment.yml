@@ -1,0 +1,28 @@
+name: scrnaseq-cd4
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.3
+  - r-seurat
+  - r-tidyverse
+  - r-patchwork
+  - r-viridis
+  - r-harmony
+  - r-biocmanager
+  - r-remotes
+  - r-devtools
+  - r-data.table
+  - r-cowplot
+  - r-ggplot2
+  - r-scales
+  - r-cetcolor
+  - r-dplyr
+  - r-magrittr
+  - r-readr
+  - r-ggplotify
+  - r-gridextra
+  - r-htmltools
+  - r-knitr
+  - r-quarto

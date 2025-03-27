@@ -1,0 +1,161 @@
+---
+title: "Single-Cell RNA-seq Analysis of CD4 T Cells Across Time Points"
+author: "Your Name"
+format: html
+self-contained: true
+---
+
+# Project Overview
+
+This project applies a single-cell RNA sequencing (scRNA-seq) analysis pipeline to a time-course dataset of human CD4 T cells stimulated with anti-CD3/CD28 antibodies. The data, sourced from [Bibby et al. 2022](https://www.cell.com/cell-reports/fulltext/S2211-1247(22)01571-6), includes samples at 0, 12, and 24 hours post-stimulation. 
+
+We aim to:
+- Integrate and analyze the samples,
+- Annotate key CD4 T cell states,
+- Reproduce a key figure from the study (Figure 2B), and
+- Conduct differential expression analyses across time points.
+
+![Bibby et al. 2022 Figure 2B](./gr2_lrg.jpg){width="75%"}
+
+---
+
+# Data Summary
+
+The three 10X-formatted samples represent the following conditions:
+
+- `sample_0_hours_10X_formated_counts`: Naive CD4 T cells at 0 hours  
+- `sample_12_hours_10X_formated_counts`: Naive CD4 T cells at 12 hours  
+- `sample_24_hours_10X_formated_counts`: Naive CD4 T cells at 24 hours  
+
+---
+
+# Environment Setup
+
+```{r}
+.libPaths("/project/msalomon_1385/TRGN_516/shared_files/TRGN_516_R_lib/")
+setwd("/home1/xiesheng/TRGN516/project_cd4_timecourse")
+
+library(Seurat)
+library(tidyverse)
+library(patchwork)
+library(viridis)
+```
+
+---
+
+# Data Loading and Initial Processing
+
+```{r}
+hr_0 <- Read10X("sample_0_hours_10X_formated_counts")
+hr_12 <- Read10X("sample_12_hours_10X_formated_counts")
+hr_24 <- Read10X("sample_24_hours_10X_formated_counts")
+
+so_hr_0 <- CreateSeuratObject(hr_0)
+so_hr_12 <- CreateSeuratObject(hr_12)
+so_hr_24 <- CreateSeuratObject(hr_24)
+
+so_hr_0$time_point <- 0
+so_hr_12$time_point <- 12
+so_hr_24$time_point <- 24
+```
+
+---
+
+# Individual Sample Processing
+
+Each sample is processed using a standard Seurat workflow.
+
+```{r}
+so_hr_0_f <- NormalizeData(so_hr_0) %>%
+  FindVariableFeatures() %>%
+  ScaleData() %>%
+  RunPCA(npcs = 50) %>%
+  FindNeighbors(dims = 1:15) %>%
+  FindClusters(resolution = 0.2) %>%
+  RunUMAP(dims = 1:15)
+
+dp_0 <- DimPlot(so_hr_0_f, label = TRUE, label.box = TRUE) + NoLegend()
+```
+
+(Repeat for 12 and 24 hours...)
+
+```{r}
+dp_0 | dp_12 | dp_24
+```
+
+---
+
+# Data Integration Using Harmony
+
+```{r}
+seurat_obj <- merge(so_hr_0, y = c(so_hr_12, so_hr_24),
+                    add.cell.ids = c("hr_0", "hr_12", "hr_24"),
+                    project = "cd4_integration")
+
+seurat_obj <- NormalizeData(seurat_obj) %>%
+  FindVariableFeatures() %>%
+  ScaleData() %>%
+  RunPCA()
+
+seurat_obj <- IntegrateLayers(seurat_obj,
+                              method = HarmonyIntegration,
+                              orig.reduction = "pca",
+                              new.reduction = "harmony")
+
+seurat_obj <- FindNeighbors(reduction = "harmony", dims = 1:30) %>%
+  FindClusters(resolution = 0.2) %>%
+  RunUMAP(reduction = "harmony", dims = 1:30)
+```
+
+```{r}
+DimPlot(seurat_obj, reduction = "harmony", split.by = "time_point", label = TRUE, label.box = TRUE)
+```
+
+---
+
+# Cell Type Annotation
+
+```{r}
+resting <- c("KLF2", "IL7R", "LINC00861", "GIMAP7", "PRMT2", "PIK3IP1")
+intermediate <- c("MT2A", "TUBB", "MIR155HG", "GAPDH", "NDUFV2", "PKM", "SAMSN1")
+activated <- c("DUSP2", "RGCC", "CD200", "FABP5", "CD69", "IL2", "IER3")
+treg <- c("TIGIT", "FOXP3", "RTKN2","IL2RA", "IL32", "TXN")
+
+seurat_obj <- AddModuleScore(seurat_obj, features = list(resting), name = "Resting_Score")
+seurat_obj <- AddModuleScore(seurat_obj, features = list(intermediate), name = "Intermediate_Score")
+seurat_obj <- AddModuleScore(seurat_obj, features = list(activated), name = "Advanced_Score")
+seurat_obj <- AddModuleScore(seurat_obj, features = list(treg), name = "Treg_Score")
+
+seurat_obj$stage_category <- apply(seurat_obj@meta.data[, c("Resting_Score1", "Intermediate_Score1", "Advanced_Score1", "Treg_Score1")], 1, function(x) {
+  c("Resting", "Intermediate", "Advanced", "Treg")[which.max(x)]
+})
+
+DimPlot(seurat_obj, reduction = "harmony", group.by = "stage_category", split.by = "time_point")
+```
+
+---
+
+# Differential Expression Analysis
+
+```{r}
+seurat_obj$time_stages <- paste(seurat_obj$stage_category, seurat_obj$time_point, sep = "_")
+Idents(seurat_obj) <- "time_stages"
+
+seurat_obj_0_12 <- subset(seurat_obj, subset = time_point %in% c(0, 12))
+hr0_12_resting_markers <- FindMarkers(seurat_obj_0_12, ident.1 = "Resting_0", ident.2 = "Resting_12")
+
+seurat_obj_12_24 <- subset(seurat_obj, subset = time_point %in% c(12, 24))
+hr12_24_resting_markers <- FindMarkers(seurat_obj_12_24, ident.1 = "Resting_12", ident.2 = "Resting_24")
+
+hr0_12_resting_markers_sig <- hr0_12_resting_markers %>% filter(p_val_adj < 0.1)
+hr12_24_resting_markers_sig <- hr12_24_resting_markers %>% filter(p_val_adj < 0.1)
+
+VlnPlot(seurat_obj_0_12, features = rownames(hr0_12_resting_markers_sig)[1:5], split.by = "time_point")
+VlnPlot(seurat_obj_12_24, features = rownames(hr12_24_resting_markers_sig)[1:5], split.by = "time_point")
+```
+
+---
+
+# Conclusions
+
+This analysis demonstrates a full pipeline for integrating and annotating scRNA-seq data from CD4 T cells, capturing cell state dynamics across a stimulation time course using Harmony and Seurat.
