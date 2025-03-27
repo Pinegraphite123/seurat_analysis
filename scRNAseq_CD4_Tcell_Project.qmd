@@ -15,7 +15,6 @@ We aim to:
 - Reproduce a key figure from the study (Figure 2B), and
 - Conduct differential expression analyses across time points.
 
-![Bibby et al. 2022 Figure 2B](./gr2_lrg.jpg){width="75%"}
 
 ---
 
@@ -32,9 +31,6 @@ The three 10X-formatted samples represent the following conditions:
 # Environment Setup
 
 ```{r}
-.libPaths("/project/msalomon_1385/TRGN_516/shared_files/TRGN_516_R_lib/")
-setwd("/home1/xiesheng/TRGN516/project_cd4_timecourse")
-
 library(Seurat)
 library(tidyverse)
 library(patchwork)
