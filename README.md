@@ -2,13 +2,19 @@
 
 This project performs an integrated single-cell RNA-seq analysis of CD4 T cells at three time points (0, 12, 24 hours) following anti-CD3/CD28 stimulation, based on data from [Bibby et al. 2022](https://www.cell.com/cell-reports/fulltext/S2211-1247(22)01571-6).
 
-## 📁 Repository Structure
+## 📂 Raw Data Access
 
-- `scRNAseq_CD4_Tcell_Project.qmd`: The main analysis document.
-- `data/`: Directory where raw 10X files should be placed (not included in repo).
-- `images/`: Contains figures including those recreated from the paper.
-- `environment.yml`: Conda environment specification.
-- `README.md`: Project description and usage instructions.
+The raw 10X-formatted scRNA-seq data used in this project is too large for GitHub. You can download it from the shared Google Drive folder below:
+
+🔗 [Google Drive: CD4 T Cell Raw Data](https://drive.google.com/drive/folders/1a2b3cEXAMPLEID?usp=sharing)
+
+Folder contains:
+- `sample_0h/`
+- `sample_12h/`
+- `sample_24h/`
+
+Please download and place these in a local `data/` directory for use with the analysis.
+
 
 ## 🧪 Setup Instructions
 
